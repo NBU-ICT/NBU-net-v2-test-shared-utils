@@ -25,9 +25,10 @@ const Redis = require('ioredis');
  * @param {Object} opts
  * @param {string} opts.url           - Redis connection URL
  * @param {string} [opts.serviceName] - Label used in logs (e.g. "admission", "academic")
+ * @param {number|null} [opts.maxRetries] - maxRetriesPerRequest (use null for BullMQ)
  * @returns {import('ioredis').Redis}
  */
-const createRedisClient = ({ url, serviceName = 'service' }) => {
+const createRedisClient = ({ url, serviceName = 'service', maxRetries = 3 }) => {
     if (!url) {
         console.warn(`[${serviceName}] REDIS_URL not set – Redis features disabled.`);
         return null;
@@ -38,7 +39,7 @@ const createRedisClient = ({ url, serviceName = 'service' }) => {
             const delay = Math.min(times * 50, 2000);
             return delay;
         },
-        maxRetriesPerRequest: 3,
+        maxRetriesPerRequest: maxRetries,
         lazyConnect: false,
     });
 
