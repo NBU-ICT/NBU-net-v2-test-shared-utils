@@ -12,7 +12,9 @@
 
 const jwt = require('jsonwebtoken');
 
-const authMiddleware = (req, res, next) => {
+const authMiddleware = (options = {}) => (req, res, next) => {
+    const isOptional = options.optional === true;
+
     // ── Internal service-to-service bypass ────────────────────────────────────
     const apiKey = req.headers['x-api-key'];
     if (apiKey && apiKey === process.env.SYSTEM_API_KEY) {
@@ -35,6 +37,7 @@ const authMiddleware = (req, res, next) => {
     }
 
     if (!token) {
+        if (isOptional) return next();
         return res.status(401).json({ message: 'Authentication required. No token provided.' });
     }
 
@@ -60,6 +63,8 @@ const authMiddleware = (req, res, next) => {
 
         next();
     } catch (err) {
+        if (isOptional) return next();
+        
         // Distinguish expired vs invalid without exposing raw error
         const msg = err.name === 'TokenExpiredError'
             ? 'Session expired. Please log in again.'
@@ -68,4 +73,8 @@ const authMiddleware = (req, res, next) => {
     }
 };
 
-module.exports = authMiddleware;
+// Backwards compatibility for existing usage: const authMiddleware = require(...)
+const defaultAuthMiddleware = authMiddleware();
+defaultAuthMiddleware.withOptions = authMiddleware;
+
+module.exports = defaultAuthMiddleware;
