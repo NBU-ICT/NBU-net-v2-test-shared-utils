@@ -18,7 +18,7 @@ const { createRedisClient } = require('./redisClient');
 const createQueuePublisher = ({ 
     queueName = 'message-queue',
     serviceName = 'service',
-    redisUrl = process.env.REDIS_URL 
+    redisUrl = process.env.EVENT_BUS_REDIS_URL || process.env.REDIS_URL 
 } = {}) => {
     // BullMQ requires a connection with maxRetriesPerRequest set to null to avoid connection issues during long waits
     const connection = createRedisClient({ 
