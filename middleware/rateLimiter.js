@@ -47,19 +47,27 @@ const createRateLimiter = ({
         const key = `ratelimit:${serviceName}:${tier}:${identifier}`;
 
         try {
-            // Atomic increment and expiry
-            const current = await redis.incr(key);
-            
-            if (current === 1) {
-                await redis.expire(key, windowSec);
-            }
+            // Atomic increment and expiry using Lua script to prevent memory leaks
+            const rateLimitScript = `
+                local current = redis.call('INCR', KEYS[1])
+                if current == 1 then
+                    redis.call('EXPIRE', KEYS[1], ARGV[1])
+                end
+                return current
+            `;
 
+            const current = await redis.eval(rateLimitScript, 1, key, windowSec);
+            const ttl = await redis.ttl(key);
             const remaining = limit - current;
             
             // Standard Rate Limit Headers
             res.setHeader('X-RateLimit-Limit', limit);
             res.setHeader('X-RateLimit-Remaining', Math.max(0, remaining));
             res.setHeader('X-RateLimit-Tier', tier);
+            
+            // X-RateLimit-Reset: Unix timestamp in seconds when the window resets
+            const resetTimestamp = Math.floor(Date.now() / 1000) + (ttl > 0 ? ttl : 0);
+            res.setHeader('X-RateLimit-Reset', resetTimestamp);
 
             if (current > limit) {
                 console.warn(`[${serviceName}] Rate Limit Exceeded for ${tier} user: ${identifier}`);
