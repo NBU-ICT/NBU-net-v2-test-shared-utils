@@ -36,13 +36,15 @@ const createRedisClient = ({ url, serviceName = 'service', maxRetries = 3 }) => 
 
     const client = new Redis(url, {
         retryStrategy(times) {
-            const delay = Math.min(times * 50, 2000);
+            // Exponential backoff: 200ms, 400ms, 800ms... up to 5s
+            const delay = Math.min(times * 200, 5000);
             return delay;
         },
         maxRetriesPerRequest: maxRetries,
         lazyConnect: false,
-        keepAlive: 10000, // Important for Railway/Heroku to prevent idle TCP drops
+        keepAlive: 10000,
         enableReadyCheck: true,
+        enableOfflineQueue: false, // Fail instantly when disconnected instead of hanging
         reconnectOnError: (err) => {
             const targetError = 'READONLY';
             if (err.message.includes(targetError)) return true;
