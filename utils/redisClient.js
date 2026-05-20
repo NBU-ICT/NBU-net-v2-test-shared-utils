@@ -41,6 +41,13 @@ const createRedisClient = ({ url, serviceName = 'service', maxRetries = 3 }) => 
         },
         maxRetriesPerRequest: maxRetries,
         lazyConnect: false,
+        keepAlive: 10000, // Important for Railway/Heroku to prevent idle TCP drops
+        enableReadyCheck: true,
+        reconnectOnError: (err) => {
+            const targetError = 'READONLY';
+            if (err.message.includes(targetError)) return true;
+            return false;
+        }
     });
 
     client.on('connect', () => {
