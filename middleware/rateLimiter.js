@@ -25,11 +25,11 @@ const createRateLimiter = ({
     const redis = createRedisClient({ url: redisUrl, serviceName: `${serviceName}:RateLimiter` });
 
     return async (req, res, next) => {
-        // If Redis isn't available, we "fail open" to ensure availability,
-        // but log a warning as the system is unprotected.
-        if (!redis) {
-            console.warn(`[${serviceName}] Rate Limiter inactive - Redis unavailable`);
-            return next(); 
+        // Skip instantly if Redis is not connected — fail open to ensure availability.
+        // With enableOfflineQueue: false, commands would throw immediately anyway,
+        // but this guard prevents even attempting them.
+        if (!redis || redis.status !== 'ready') {
+            return next();
         }
 
         const isAuth = !!req.user && req.user.id !== 'SYSTEM';
@@ -47,17 +47,17 @@ const createRateLimiter = ({
         const key = `ratelimit:${serviceName}:${tier}:${identifier}`;
 
         try {
-            // Atomic increment and expiry using Lua script to prevent memory leaks
+            // Single Lua script: INCR + EXPIRE + TTL in one round-trip (was 2 calls)
             const rateLimitScript = `
                 local current = redis.call('INCR', KEYS[1])
                 if current == 1 then
                     redis.call('EXPIRE', KEYS[1], ARGV[1])
                 end
-                return current
+                local ttl = redis.call('TTL', KEYS[1])
+                return {current, ttl}
             `;
 
-            const current = await redis.eval(rateLimitScript, 1, key, windowSec);
-            const ttl = await redis.ttl(key);
+            const [current, ttl] = await redis.eval(rateLimitScript, 1, key, windowSec);
             const remaining = limit - current;
             
             // Standard Rate Limit Headers
@@ -82,7 +82,7 @@ const createRateLimiter = ({
 
             next();
         } catch (error) {
-            console.error(`[${serviceName}] Rate Limiter internal error:`, error.message);
+            // Fail open — Redis error should never block a legitimate request
             next();
         }
     };
