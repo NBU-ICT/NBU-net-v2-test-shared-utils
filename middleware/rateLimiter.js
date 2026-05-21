@@ -13,6 +13,7 @@ const { createRedisClient } = require('../utils/redisClient');
  * @param {number} [options.authMax=3000] - Max requests for authenticated users
  * @param {number} [options.authWindowMs=900000] - Window duration for auth users (default 15m)
  * @param {string} [options.redisUrl] - Custom Redis URL (optional)
+ * @param {import('ioredis').Redis} [options.redisClient] - Existing Redis client to reuse (avoids opening a new connection)
  */
 const createRateLimiter = ({ 
     serviceName, 
@@ -20,9 +21,11 @@ const createRateLimiter = ({
     publicWindowMs = 15 * 60 * 1000,
     authMax = 3000,
     authWindowMs = 15 * 60 * 1000,
-    redisUrl = process.env.REDIS_URL
+    redisUrl = process.env.REDIS_URL,
+    redisClient = null  // Optional: pass an existing client to avoid a new connection
 }) => {
-    const redis = createRedisClient({ url: redisUrl, serviceName: `${serviceName}:RateLimiter` });
+    // Reuse provided client, or create a dedicated one for this rate limiter
+    const redis = redisClient || createRedisClient({ url: redisUrl, serviceName: `${serviceName}:RateLimiter` });
 
     return async (req, res, next) => {
         // Skip instantly if Redis is not connected — fail open to ensure availability.
