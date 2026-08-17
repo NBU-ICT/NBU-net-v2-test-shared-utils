@@ -1,6 +1,6 @@
 {
   "name": "@nbu/shared-utils",
-  "version": "1.0.0",
+  "version": "1.7.0",
   "description": "Shared utilities for all NBU-Net microservices",
   "main": "index.js",
   "author": "NBU-Net Engineering",

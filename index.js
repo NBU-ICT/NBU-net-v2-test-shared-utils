@@ -10,17 +10,23 @@
 const authMiddleware  = require('./middleware/authMiddleware');
 const errorMiddleware = require('./middleware/errorMiddleware');
 const rateLimiter     = require('./middleware/rateLimiter');
+const cacheMiddleware = require('./middleware/cacheMiddleware');
 const {
     createRedisClient,
     createEventPublisher,
 } = require('./utils/redisClient');
 const { createQueuePublisher } = require('./utils/queuePublisher');
+const { CacheService, createCacheService } = require('./utils/cacheService');
 
 module.exports = {
     authMiddleware,
     errorMiddleware,
     rateLimiter,
+    cacheMiddleware,
     createRedisClient,
     createEventPublisher,
     createQueuePublisher,
+    CacheService,
+    createCacheService,
 };
+
